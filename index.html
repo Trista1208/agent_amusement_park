@@ -582,7 +582,7 @@ function renderCard() {
   if (!a) { c.classList.remove('show'); return; }
   const prs = S.prs.filter((p) => p.agents.includes(a.id));
   c.innerHTML = `<button class="x" onclick="select(null)">×</button>
-    <h3>${srcIcon(a.source)} ${esc(a.name)} ${badge(a)}${isMine(a) ? '' : ' ' + ownTag(a.project)} <span style="color:var(--muted)">Lv${a.level}</span></h3>
+    <h3>${srcIcon(a.source)} ${esc(a.name)}${a.sub ? ' <span class="pill" title="a helper task started by another agent">SUB-AGENT</span>' : ''} ${badge(a)}${isMine(a) ? '' : ' ' + ownTag(a.project)} <span style="color:var(--muted)">Lv${a.level}</span></h3>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="pill ${a.status}">${a.status.toUpperCase()}</span> <span>${a.status === 'working' ? '🎢 on the roller coaster · ' + WORK_TXT[a.work] : ZONE_TXT[a.zone]}</span></div>
     ${paceTxt(a) ? `<div style="margin-top:6px">${paceTxt(a)}</div>` : ''}
     <div style="color:var(--muted);margin-top:6px">${({ codex: 'Codex', cursor: 'Cursor', claude: 'Claude Code', 'claude-cloud': 'Claude (claude.ai, cloud)', visitor: 'Visitor' })[a.source] || a.source}${a.branch ? ' · ⎇ ' + esc(a.branch) : ''} · ${hhmm(a.startedAt)}–${a.status === 'dead' ? hhmm(a.lastAt) : 'now'} · active ${ago(a.lastAt)} · ${a.toolCount} actions</div>

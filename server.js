@@ -408,7 +408,7 @@ async function scanAgents() {
       parseCache.set(f.file, { mtime: f.mtime, size: f.size, result: parsed });
     }
     const { meta, ev } = parsed;
-    if (meta.sidechain && f.src === 'claude' && /agent-/.test(path.basename(f.file))) continue; // sub-agent transcripts
+    const isSub = f.src === 'claude' && (meta.sidechain || /(^|\/)subagents\//.test(f.file) || /^agent-/.test(path.basename(f.file)));
     if (!ev.length) continue;
     const { status, zone, lastT } = classify(meta, ev, f.mtime, now);
     const users = ev.filter((e) => e.k === 'user');
@@ -421,8 +421,9 @@ async function scanAgents() {
     }
     const project = meta.cwd ? path.basename(meta.cwd) : f.src === 'cursor' ? f.projectDir.replace(/^Users-[^-]+-(Desktop-|Documents-|Downloads-)?/, '') : (f.src === 'claude' ? path.basename(path.dirname(f.file)).replace(/^-+/, '').split('-').pop() : 'unknown');
     agents.push({
-      id: meta.id || f.file,
-      name: nameFor(meta.id || f.file),
+      id: isSub ? 'sub:' + f.file : (meta.id || f.file),
+      name: isSub ? nameFor(f.file) : nameFor(meta.id || f.file),
+      sub: isSub,
       owner: ME, mine: true,
       source: f.src,
       project,
@@ -685,6 +686,10 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
+if (require.main === module) {
+  const self = __filename, t0 = fs.statSync(self).mtimeMs;
+  setInterval(() => { try { if (fs.statSync(self).mtimeMs !== t0 && process.env.XPC_SERVICE_NAME && process.env.XPC_SERVICE_NAME.includes('agentpark')) { console.log('server.js changed — restarting'); process.exit(0); } } catch {} }, 5000);
+}
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     const u = `http://localhost:${PORT}`;
