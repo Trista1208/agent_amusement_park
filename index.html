@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Amusement Park · Jiaqi</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#24112f; --panel:#2e1638; --panel2:#3a1c48; --line:#6a2f6e; --ink:#fff0f7; --muted:#d79bc0;
+  --gold:#ff8fc7; --blue:#3d6cff; --green:#5be08a; --red:#ff5d6c; --orange:#ff9a3d; --pix:'Press Start 2P',monospace; --mono:'VT323',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:20px;line-height:1.15}
+a{color:#8fb4ff;text-decoration:none} a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;cursor:pointer}
+#app{display:flex;flex-direction:column;min-height:100vh}
+#map{position:relative;width:100%;aspect-ratio:640/280;max-height:72vh;margin:0 auto;overflow:hidden;background:#24112f}
+#cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;cursor:default}
+#ov{position:absolute;inset:0;pointer-events:none;font-size:2px}
+#ov > *{position:absolute;transform:translate(-50%,-100%);white-space:nowrap}
+
+/* zone labels */
+.zl{font-family:var(--pix);font-size:4.4em;letter-spacing:.06em;background:#3a1240ee;border:.5em solid #000;outline:.25em solid #b0508f;padding:.55em .9em .45em;color:#fff;text-shadow:.15em .15em 0 #000;display:flex;gap:.6em;align-items:center}
+.zl b{color:var(--muted);font-weight:400}
+.zl.on{outline-color:var(--gold)} .zl.gate{background:#ff8fc7;color:#4a1240;text-shadow:none;outline-color:#fff;font-size:5em} .zl.on b{color:var(--gold)}
+.zl .ic{font-family:system-ui;font-size:.95em}
+
+/* agent tags */
+.tag{pointer-events:auto;cursor:pointer;font-family:var(--pix);font-size:3.2em;background:#3a1240dd;border:.3em solid #000;padding:.35em .5em .25em;display:flex;gap:.45em;align-items:center;color:#d9d6ff}
+.tag:hover,.tag.sel{border-color:var(--gold);color:#fff;z-index:5}
+.tag .n{background:#b0508f;color:#fff;padding:0 .3em}
+.tag .own{color:#0b0c1e;padding:0 .3em}
+.tag .lv{color:var(--muted)}
+.tag.dim{opacity:.75}
+.bub{font-family:var(--mono);font-size:3.6em;background:#efe9d6;color:#2a2440;border:.25em solid #000;padding:.05em .4em;max-width:44em;overflow:hidden;text-overflow:ellipsis;box-shadow:.3em .3em 0 #0006}
+.bub.wait{background:var(--gold);font-family:var(--pix);font-size:3em;padding:.35em .5em}
+.tomb{font-family:var(--pix);font-size:2em;color:#9aa0c8;background:#3a124099;padding:.2em .3em;transform:translate(-50%,0)!important;pointer-events:auto;cursor:pointer;max-width:13em;overflow:hidden;text-overflow:ellipsis}
+.tomb:hover{color:#fff}
+.board{transform:none!important;font-family:var(--mono);color:#3a2f22;font-size:4.3em;line-height:1.05;white-space:normal!important;overflow:hidden;pointer-events:auto;cursor:pointer}
+.board b{font-family:var(--pix);font-size:.6em}
+.board i{display:block;color:#7d6b52;font-size:.85em;margin-top:.2em}
+
+/* detail card */
+#card{position:absolute;top:2%;right:1.2%;width:min(420px,38%);max-height:92%;overflow:auto;background:#2e1236f2;border:4px solid #000;outline:2px solid var(--gold);padding:14px 16px;display:none;z-index:20;font-size:19px}
+#card.show{display:block}
+#card .x{position:absolute;top:6px;right:8px;background:none;border:0;font-size:26px;color:var(--muted)}
+#card h3{font-family:var(--pix);font-size:13px;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#card .k{font-family:var(--pix);font-size:9px;color:var(--muted);margin:12px 0 4px}
+#card ul{margin:0;padding:0;list-style:none} #card li{padding:2px 0;border-bottom:1px dashed #6a2f6e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#card li time{color:var(--muted);margin-right:6px}
+#card code{font-family:var(--mono);color:#b9b4ff;word-break:break-all}
+.pill{font-family:var(--pix);font-size:9px;padding:3px 6px;border:2px solid #000;background:#6a2f6e}
+.pill.working{background:#1f6b3d}.pill.waiting{background:#8a6d12}.pill.idle{background:#5a3a1a}.pill.dead{background:#3a3a4a}
+
+#toast{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:30;pointer-events:none}
+#toast div{font-family:var(--pix);font-size:11px;background:var(--gold);color:#1a1530;border:3px solid #000;padding:8px 12px;box-shadow:4px 4px 0 #0008;animation:pop .25s}
+@keyframes pop{from{transform:translateY(10px);opacity:0}}
+#banner.demo{font-size:13px;border-width:3px;background:#ff9a3d;color:#2a1030;padding:10px 14px;left:50%;transform:translateX(-50%);bottom:auto;top:3%}
+#banner.demo code{color:#2a1030}
+#banner{position:absolute;bottom:2%;left:1%;font-family:var(--pix);font-size:9px;background:#2e1236e6;border:2px solid var(--orange);color:var(--orange);padding:6px 9px;display:none;z-index:10}
+#banner code{font-family:var(--mono);font-size:16px;color:#fff}
+
+/* panels */
+#panels{display:grid;grid-template-columns:minmax(300px,24%) 1fr minmax(320px,32%);border-top:4px solid #000;outline:2px solid var(--line);height:330px;transition:height .25s}
+#panels.big{height:520px}
+#panels section{padding:12px 16px;border-right:2px solid var(--line);overflow:hidden;display:flex;flex-direction:column;min-height:0}
+#hq{overflow-y:auto!important;overflow-x:hidden}
+#hq::-webkit-scrollbar{width:8px}
+#panels section:last-child{border-right:0}
+.ph{font-family:var(--pix);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ph .sp{flex:1}
+.ph button{font-family:var(--pix);font-size:9px;background:#2e1236;border:2px solid var(--line);padding:6px 8px}
+.ph button:hover{border-color:var(--gold)}
+#hq h1{font-family:var(--pix);font-size:15px;line-height:1.35;margin:0;letter-spacing:.04em;text-shadow:3px 3px 0 #000}
+#hq h1 small{display:block;font-size:10px;color:var(--gold);margin-top:6px;letter-spacing:.3em}
+.live{font-family:var(--pix);font-size:10px;color:var(--green);margin:10px 0 8px;display:flex;align-items:center;gap:6px}
+.live.demo{color:var(--orange)}
+.live .dot{width:9px;height:9px;background:currentColor;display:inline-block;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.counts{margin-bottom:8px}
+.proj{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;margin:5px 0}
+.proj .own{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.proj .pn{white-space:nowrap;color:var(--ink)} .proj .pn b{color:var(--green);font-weight:400}
+.counts{display:flex;flex-wrap:wrap;gap:2px 12px}
+.own{font-family:var(--pix);font-size:9px;padding:3px 5px;color:#0b0c1e;display:inline-block}
+.sbar{display:flex;height:6px;margin:10px 0;background:#6a2f6e}
+.sbar i{display:block;height:100%}
+.btns{display:flex;gap:6px;margin-top:auto;padding-top:8px;align-items:center;flex-wrap:wrap}
+.btns button{background:#2e1236;border:2px solid var(--line);padding:4px 8px;font-size:18px}
+.btns button.on{border-color:var(--gold)}
+.btns .hint{color:var(--muted);font-size:16px}
+#chatlist,#sidelist{overflow:auto;flex:1;min-height:0;padding-right:6px}
+.msg{padding:6px 0;border-bottom:1px dashed #6a2f6e}
+.msg .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.msg time{color:var(--muted)}
+.msg .nm{color:#8fb4ff;cursor:pointer}
+.msg .tx{margin:3px 0 0 4px;color:#d7d3f5;word-break:break-word}
+.tabs{display:flex;gap:16px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;font-family:var(--pix);font-size:12px;color:var(--muted);padding:0 0 4px}
+.tabs button.on{color:#fff;border-color:#fff}
+.pr{padding:8px 0;border-bottom:1px dashed #6a2f6e}
+.pr a{color:#fff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr a b{color:var(--muted);font-weight:400;margin-right:6px}
+.badges{display:flex;gap:5px;margin:5px 0;flex-wrap:wrap}
+.bd{font-size:16px;border:2px solid #b0508f;padding:0 6px}
+.bd.ok{border-color:#2f8f55;color:var(--green)} .bd.bad{border-color:#b33a48;color:var(--red)} .bd.warn{border-color:#9c7a1c;color:var(--gold)}
+.who{display:flex;gap:8px;align-items:center;color:var(--muted)}
+.who .nm{color:#8fb4ff;cursor:pointer}
+.empty{color:var(--muted);padding:8px 0}
+.empty code{color:#fff}
+::-webkit-scrollbar{width:8px} ::-webkit-scrollbar-thumb{background:#6a2f6e}
+@media (max-width:900px){
+  #panels{grid-template-columns:1fr;height:auto} #panels.big{height:auto}
+  #panels section{border-right:0;border-bottom:2px solid var(--line);max-height:340px}
+  #card{width:92%;right:4%}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map">
+    <canvas id="cv" width="640" height="280"></canvas>
+    <div id="ov"></div>
+    <div id="banner"></div>
+    <div id="card"></div>
+    <div id="toast"></div>
+  </div>
+  <div id="panels">
+    <section id="hq">
+      <h1>AGENT AMUSEMENT PARK<small>· JIAQI ·</small></h1>
+      <div class="live" id="live"><i class="dot"></i><span id="livetxt">LIVE</span> · <span id="clock"></span></div>
+      <div class="counts" id="counts"></div>
+      <div id="projects"></div>
+      <div class="sbar" id="sbar"></div>
+      <div class="btns">
+        <button id="bSound" title="Beep when an agent is waiting for you">🔈</button>
+        <button id="bNotify" title="Desktop notification when an agent is waiting for you">🔕</button>
+        <button id="bDemo" title="Toggle demo data">🎲</button>
+        <a id="livelink" target="_blank" style="display:none;border:2px solid var(--line);padding:4px 8px;font-size:18px">📡 live page</a>
+        <span class="hint">click an agent · 1-9 select</span>
+      </div>
+    </section>
+    <section id="chat">
+      <div class="ph">💬 CHAT · <span id="chatn">0</span><span class="sp"></span><button id="bBig">▲ bigger</button></div>
+      <div id="chatlist"></div>
+    </section>
+    <section id="side">
+      <div class="ph tabs"><button id="tPR" class="on">📜 PRS · <span id="prn">0</span></button><button id="tFiles">🔒 FILES · <span id="fn">0</span></button></div>
+      <div id="sidelist"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   Agent House Jiaqi — pixel map of your coding agents
+   ===================================================================== */
+const W = 640, H = 280;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const ov = document.getElementById('ov');
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- helpers ---------- */
+function hash(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+function disc(c, cx, cy, rx, col, ry = rx) { c.fillStyle = col; for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) { const w = Math.floor(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry)))); c.fillRect(Math.round(cx - w), Math.round(cy + dy), w * 2 + 1, 1); } }
+const hhmm = (t) => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function ago(t) { const s = Math.max(0, (Date.now() - t) / 1000); if (s < 60) return Math.floor(s) + 's ago'; if (s < 3600) return Math.floor(s / 60) + 'm ago'; if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago'; }
+const OWN_COLORS = ['#ff8fc7', '#b9a0ff', '#7fd8be', '#ffd36b', '#ff9a8a', '#8fd0ff', '#f6b0ff', '#ffc4dd', '#c8f0a0'];
+const ownColor = (p) => OWN_COLORS[hash(p) % OWN_COLORS.length];
+const ownTag = (p) => `<span class="own" title="${esc(p)}" style="background:${ownColor(p)}">${esc(String(p || '?').toUpperCase().slice(0, 40))}</span>`;
+const srcIcon = (s) => (s === 'codex' ? '🧠' : s === 'cursor' ? '🖱️' : s === 'claude-cloud' ? '✨' : s === 'visitor' ? '🛸' : '🤖');
+const isMine = (a) => a.mine !== false;
+const badgeText = (a) => (isMine(a) ? a.project : a.owner) || '?';
+const badge = (a) => `<span class="own" style="background:${ownColor(badgeText(a))}">${esc(String(badgeText(a)).toUpperCase().slice(0, 12))}</span>`;
+
+/* ---------- park layout ----------
+   Every zone is a ride. Ride speed follows the riders' pace
+   (= tool actions in the last 5 minutes): busy agents zoom, slow ones crawl. */
+const Z = {
+  newtask:   { label: 'NEW TASK',     ride: 'carousel',  icon: '🎠', lx: 330, ly: 112, ex: 330, ey: 186 },
+  building:  { label: 'ROLLER COASTER · RUNNING', ride: 'coaster',   icon: '🎢', lx: 150, ly: 4,   ex: 150, ey: 140 },
+  fixing:    { label: 'FIXING BUGS',  ride: 'bumper',    icon: '🚗', lx: 332, ly: 18,  ex: 332, ey: 100 },
+  reviewing: { label: 'REVIEWING',    ride: 'ferris',    icon: '🎡', lx: 500, ly: 6,   ex: 500, ey: 146 },
+  merging:   { label: 'SHIPPING',     ride: 'drop',      icon: '🚀', lx: 584, ly: 76,  ex: 588, ey: 224 },
+  waiting:   { label: 'WAITING',      ride: null,        icon: '🎟️', lx: 206, ly: 154, ex: 206, ey: 192 },
+  idle:      { label: 'IDLE',         ride: null,        icon: '🍦', lx: 78,  ly: 186, ex: 82,  ey: 228 },
+  graveyard: { label: 'HAUNTED HOUSE',ride: null,        icon: '👻', lx: 446, ly: 170, ex: 0,   ey: 0 },
+};
+const HUB = [330, 204], GATE = [350, 278];
+const POND = { x: 262, y: 252, rx: 28, ry: 11 };
+const PATHS = [
+  [330, 204, 240, 160, 150, 140], [330, 204, 402, 160, 332, 100], [330, 204, 430, 188, 500, 146],
+  [500, 146, 566, 150, 588, 224], [330, 204, 270, 206, 206, 198], [176, 200, 124, 204, 90, 228],
+  [350, 280, 338, 240, 330, 204], [150, 140, 90, 170, 82, 214],
+];
+const WAYPOINTS = { merging: [[500, 148]], idle: [[176, 202]] };
+const TOMB_SLOTS = []; for (let r = 0; r < 2; r++) for (let c = 0; c < 9; c++) TOMB_SLOTS.push([382 + c * 16 + (r ? 8 : 0), 246 + r * 18]);
+const BULB_COLORS = ['#ff5d6c', '#ffd36b', '#5be08a', '#6cb6ff', '#ff8ad8'];
+const BULBS = [];
+const avg = (xs) => xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : 0;
+const paceOf = (list) => Math.min(30, avg(list.map((a) => a.pace || 0)));
+
+/* coaster track: an oval with two big hills */
+function trackPt(u) {
+  return [150 + 116 * Math.cos(u), 92 + 32 * Math.sin(u) - 34 * Math.pow(Math.max(0, Math.sin(2 * u + 0.9)), 3) - 18 * Math.pow(Math.max(0, Math.sin(3 * u - 1)), 4)];
+}
+function line(c, x0, y0, x1, y1, col) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0 || 1; c.fillStyle = col; for (let i = 0; i <= n; i++) c.fillRect(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), 1, 1); }
+
+/* ---------- static background ---------- */
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+const PATH_PTS = [];
+function qpt(p, t) { const [x0, y0, cx, cy, x1, y1] = p, u = 1 - t; return [u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]; }
+const BUSY = [[24, 0, 278, 146], [272, 30, 392, 104], [450, 0, 552, 152], [292, 120, 368, 192], [566, 70, 612, 232], [160, 160, 258, 214], [36, 186, 124, 252], [366, 176, 532, 280], [322, 248, 378, 280], [388, 102, 432, 140], [POND.x - 34, POND.y - 16, POND.x + 34, POND.y + 16]];
+function buildBackground() {
+  const b = bg.getContext('2d'), r = rng(11);
+  rect(b, 0, 0, W, H, '#8ccf9a');
+  for (let i = 0; i < 6000; i++) rect(b, r() * W, r() * H, 1, 1, ['#83c792', '#96d6a4', '#8acb98', '#a2dcae', '#7abd89'][(r() * 5) | 0]);
+  for (let i = 0; i < 300; i++) { const x = r() * W, y = r() * H; rect(b, x, y, 1, 2, '#b0e3b9'); rect(b, x + 2, y + 1, 1, 1, '#b0e3b9'); }
+  // paths (warm cobblestone) with string lights
+  for (const p of PATHS) for (let t = 0; t <= 1; t += 0.006) PATH_PTS.push(qpt(p, t));
+  for (const [x, y] of PATH_PTS) disc(b, x, y, 6, '#e08fb0');
+  for (const [x, y] of PATH_PTS) disc(b, x, y, 5, '#ffd1e1');
+  for (let i = 0; i < PATH_PTS.length * 1.4; i++) { const [x, y] = PATH_PTS[(r() * PATH_PTS.length) | 0]; rect(b, x + r() * 8 - 4, y + r() * 8 - 4, 2, 1, r() < .5 ? '#f7bcd2' : '#ffe6f0'); }
+  for (const p of PATHS) for (let t = 0.05; t < 0.96; t += 0.07) { const [x, y] = qpt(p, t), [x2, y2] = qpt(p, t + 0.01), dx = x2 - x, dy = y2 - y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    for (const s of [-1, 1]) BULBS.push([x + nx * 8 * s, y + ny * 8 * s, BULB_COLORS[(BULBS.length) % 5]]); }
+  disc(b, HUB[0], HUB[1], 15, '#e08fb0', 9); disc(b, HUB[0], HUB[1], 13, '#ffe6f0', 8); disc(b, HUB[0], HUB[1], 4, '#6cb6ff', 2); rect(b, HUB[0], HUB[1] - 5, 1, 4, '#b9bfcc');
+  // pond with swan boats
+  disc(b, POND.x, POND.y, POND.rx + 3, '#e08fb0', POND.ry + 3); disc(b, POND.x, POND.y, POND.rx, '#2f7fd0', POND.ry); disc(b, POND.x - 3, POND.y - 2, POND.rx - 9, '#4794e0', POND.ry - 5);
+  for (const [sx, sy] of [[250, 250], [272, 255]]) { rect(b, sx, sy, 7, 3, '#f4f1ea'); rect(b, sx + 5, sy - 3, 1, 3, '#f4f1ea'); rect(b, sx + 5, sy - 4, 2, 1, '#f4f1ea'); rect(b, sx + 7, sy - 4, 1, 1, '#ff9a3d'); }
+  drawCoasterTrack(b); drawRink(b); drawFerrisBase(b); drawCarouselBase(b); drawDropTower(b); drawQueue(b); drawPicnic(b); drawHaunted(b); drawGate(b); drawBoard(b);
+  // trees / flowers only where the park is empty
+  const freeAt = (x, y) => x > 3 && x < W - 3 && y > 6 && y < H - 2 && BUSY.every(([a, c, d, e]) => x < a - 3 || x > d + 3 || y < c - 3 || y > e + 8) && PATH_PTS.every(([px, py]) => (x - px) ** 2 + (y - py) ** 2 > 110)
+    && Object.values(Z).every((z) => !(Math.abs(x - z.lx) < 48 && y > z.ly - 6 && y < z.ly + 22));
+  const trees = [];
+  for (let i = 0; i < 1600 && trees.length < 90; i++) { const x = r() * W, y = r() * H; if (freeAt(x, y) && trees.every(([tx, ty]) => (tx - x) ** 2 + (ty - y) ** 2 > 120)) trees.push([x, y, r()]); }
+  trees.sort((a, c) => a[1] - c[1]);
+  for (const [x, y, k] of trees) (k < 0.4 ? pine : roundTree)(b, x, y, k);
+  for (let i = 0; i < 260; i++) { const x = r() * W, y = r() * H; if (!freeAt(x, y)) continue; const k = r();
+    if (k < 0.55) { rect(b, x, y, 1, 1, ['#ff6b8a', '#ffe066', '#ffffff', '#c48bff', '#ff9a3d'][(r() * 5) | 0]); rect(b, x, y + 1, 1, 1, '#5fae74'); }
+    else if (k < 0.65) { rect(b, x + 1, y, 1, 4, '#3f7a35'); disc(b, x + 1, y - 1, 2, '#f2c12e'); rect(b, x + 1, y - 1, 1, 1, '#7a4a1a'); }
+    else if (k < 0.72) { rect(b, x, y, 1, 7, '#2a2d38'); rect(b, x - 1, y - 1, 3, 2, '#ffe9a0'); BULBS.push([x, y - 1, '#ffe9a0']); } }
+}
+function pine(b, x, y, k) { rect(b, x - 1, y - 2, 2, 3, '#4a3020'); const h = 8 + Math.round(k * 6); for (let i = 0; i < h; i++) { const w = Math.round(1 + (i / h) * 5), yy = y - 2 - h + i; rect(b, x - w, yy, w * 2, 1, i % 3 === 2 ? '#357d4d' : '#3f8f5a'); rect(b, x - w, yy, Math.max(1, w - 1), 1, '#56a86f'); } }
+function roundTree(b, x, y, k) { rect(b, x - 1, y - 3, 2, 4, '#4a3020'); disc(b, x, y - 8, 5 + Math.round(k * 2), '#e88cb4'); disc(b, x - 1, y - 9, 4, '#f4a9c9'); disc(b, x - 2, y - 10, 2, '#ffd0e3'); if (k > 0.8) { rect(b, x + 2, y - 9, 1, 1, '#ff5d6c'); rect(b, x - 3, y - 7, 1, 1, '#ff5d6c'); } }
+function drawCoasterTrack(b) {
+  // supports first, then rails
+  for (let u = 0; u < Math.PI * 2; u += 0.16) { const [x, y] = trackPt(u); if (y < 126) { line(b, x, y + 2, x, 130, '#b8b2cc'); line(b, x - 3, 130, x, y + 6, '#9690ad'); } }
+  for (let u = 0; u < Math.PI * 2; u += 0.003) { const [x, y] = trackPt(u); rect(b, x, y, 2, 1, '#ff6fae'); rect(b, x, y + 1, 2, 1, '#b03a78'); }
+  for (let u = 0; u < Math.PI * 2; u += 0.21) { const [x, y] = trackPt(u); BULBS.push([x, y - 1, BULB_COLORS[Math.round(u * 5) % 5]]); }
+  rect(b, 132, 124, 36, 4, '#7a5534'); rect(b, 132, 124, 36, 1, '#a07a4a'); rect(b, 134, 116, 2, 8, '#6b4a2b'); rect(b, 164, 116, 2, 8, '#6b4a2b');
+  for (let i = 0; i < 9; i++) rect(b, 132 + i * 4, 114, 4, 2, i % 2 ? '#fff' : '#ff6fae'); // station roof
+}
+function drawRink(b) {
+  rect(b, 280, 38, 104, 52, '#8a62b8'); for (let i = 0; i < 104; i += 4) { rect(b, 280 + i, 38, 2, 2, '#ffd36b'); rect(b, 280 + i, 88, 2, 2, '#ffd36b'); }
+  for (let j = 0; j < 52; j += 4) { rect(b, 280, 38 + j, 2, 2, '#ffd36b'); rect(b, 382, 38 + j, 2, 2, '#ffd36b'); }
+  rect(b, 283, 41, 98, 46, '#c3aee8'); for (let i = 0; i < 260; i++) rect(b, 284 + Math.floor((i * 37) % 96), 42 + Math.floor((i * 53) % 44), 1, 1, '#d2c0f0');
+  for (const [px, py] of [[281, 32], [381, 32]]) { rect(b, px, py, 2, 8, '#9aa0b5'); BULBS.push([px + 1, py, '#6cb6ff']); }
+  rect(b, 281, 31, 102, 1, '#9aa0b5');
+}
+function drawFerrisBase(b) {
+  line(b, 500, 78, 482, 136, '#d9d4e8'); line(b, 500, 78, 518, 136, '#d9d4e8'); line(b, 501, 78, 483, 136, '#a9a3c0'); line(b, 501, 78, 519, 136, '#a9a3c0');
+  rect(b, 476, 136, 48, 4, '#6f7480'); rect(b, 492, 140, 16, 4, '#7a5534');
+}
+function drawCarouselBase(b) { disc(b, 330, 166, 30, '#7d2f4f', 11); disc(b, 330, 164, 28, '#ffe3ee', 10); disc(b, 330, 164, 20, '#ffc9de', 7); }
+function drawDropTower(b) {
+  rect(b, 585, 92, 7, 122, '#8f93a8'); for (let y = 96; y < 212; y += 6) { line(b, 585, y, 591, y + 6, '#6f7388'); line(b, 591, y, 585, y + 6, '#6f7388'); }
+  rect(b, 581, 86, 15, 6, '#ff6fae'); rect(b, 583, 84, 11, 2, '#ffd36b'); rect(b, 587, 80, 3, 4, '#fff');
+  rect(b, 575, 212, 27, 6, '#555a66'); rect(b, 575, 212, 27, 1, '#6f7480');
+  for (let y = 100; y < 210; y += 10) BULBS.push([592, y, BULB_COLORS[(y / 10) % 5 | 0]]);
+}
+function drawQueue(b) {
+  for (let row = 0; row < 3; row++) { const y = 186 + row * 12; for (let x = 172; x < 240; x += 2) if (!((row % 2 === 0 && x > 232) || (row % 2 === 1 && x < 180))) rect(b, x, y, 1, 1, '#d23b3b'); for (let x = 172; x <= 240; x += 12) rect(b, x, y - 2, 1, 4, '#c9c9d9'); }
+  const x = 240, y = 172; rect(b, x, y, 16, 16, '#f0e6d0'); for (let i = 0; i < 8; i++) rect(b, x - 1 + i * 2, y - 4, 2, 4, i % 2 ? '#fff' : '#3d6cff'); rect(b, x + 3, y + 4, 10, 5, '#2a2f45'); rect(b, x + 3, y + 10, 10, 1, '#7a5534');
+  BULBS.push([x + 8, y + 6, '#ffe9a0']);
+}
+function drawPicnic(b) {
+  rect(b, 70, 224, 24, 6, '#a0703f'); rect(b, 70, 224, 24, 1, '#c08a50'); rect(b, 72, 230, 2, 3, '#6b4a2b'); rect(b, 90, 230, 2, 3, '#6b4a2b');
+  // ice cream cart
+  const x = 44, y = 204; rect(b, x, y, 16, 10, '#f6f0e4'); for (let i = 0; i < 8; i++) rect(b, x - 1 + i * 2, y - 8, 2, 3, i % 2 ? '#ffb3cf' : '#fff'); rect(b, x + 7, y - 5, 1, 5, '#9aa0b5');
+  rect(b, x + 2, y + 2, 3, 3, '#ffb3cf'); rect(b, x + 6, y + 2, 3, 3, '#a8e6cf'); rect(b, x + 10, y + 2, 3, 3, '#fff3a8'); disc(b, x + 3, y + 11, 2, '#2a2d38'); disc(b, x + 13, y + 11, 2, '#2a2d38');
+  for (const [bx, by, c] of [[106, 196, '#ff5d6c'], [110, 192, '#6cb6ff'], [113, 197, '#ffd36b']]) { disc(b, bx, by, 2, c, 3); line(b, bx, by + 3, 104, 210, '#e8e8f0'); }
+}
+function drawHaunted(b) {
+  const x = 426, y = 196;
+  for (let i = 0; i < 12; i++) rect(b, x - 4 + i, y - i, 48 - i * 2, 1, '#2a2140');
+  rect(b, x, y, 40, 30, '#4a3a6a'); rect(b, x + 30, y, 10, 30, '#3d3058');
+  for (const tx of [x - 8, x + 42]) { rect(b, tx, y - 6, 8, 36, '#52427a'); for (let i = 0; i < 9; i++) rect(b, tx + 4 - Math.floor(i / 2), y - 15 + i, 1 + Math.floor(i / 2) * 2, 1, '#2a2140'); }
+  rect(b, x + 16, y + 18, 8, 12, '#1a1428'); rect(b, x + 17, y + 17, 6, 1, '#1a1428');
+  for (const [wx, wy] of [[x + 5, y + 6], [x + 29, y + 6], [x - 5, y + 4], [x + 45, y + 4], [x + 5, y + 18], [x + 29, y + 18]]) rect(b, wx, wy, 4, 5, '#8fff9a');
+  for (let i = 0; i < 4; i++) { rect(b, 370 + i * 4, 226, 1, 6, '#5a5f70'); }
+}
+function drawGate(b) {
+  rect(b, 330, 252, 5, 26, '#c23a5a'); rect(b, 366, 252, 5, 26, '#c23a5a'); rect(b, 330, 252, 5, 2, '#ffd36b'); rect(b, 366, 252, 5, 2, '#ffd36b');
+  for (let i = 0; i < 41; i++) { const y = 248 - Math.round(Math.sin(i / 40 * Math.PI) * 6); rect(b, 330 + i, y, 1, 4, '#ff6fae'); if (i % 5 === 0) BULBS.push([330 + i, y, BULB_COLORS[(i / 5) % 5]]); }
+  rect(b, 331, 238, 2, 6, '#ddd'); rect(b, 333, 238, 5, 3, '#ffd36b'); rect(b, 368, 238, 2, 6, '#ddd'); rect(b, 370, 238, 5, 3, '#6cb6ff');
+}
+function drawBoard(b) {
+  rect(b, 395, 130, 2, 9, '#4b331d'); rect(b, 425, 130, 2, 9, '#4b331d');
+  rect(b, 391, 106, 40, 26, '#5e3f24'); rect(b, 393, 108, 36, 22, '#7a5534'); rect(b, 395, 110, 32, 18, '#efe6cf'); rect(b, 410, 109, 2, 2, '#d23b3b');
+}
+
+/* ---------- state ---------- */
+let S = { agents: [], prs: [], files: [], chat: [], mode: 'loading' };
+let byId = new Map();
+const anim = new Map(); // id -> {x,y,px,py,path,zone,onRide,seed}
+let selected = null, hovered = null, demo = /[?&]demo\b/.test(location.search), demoTimer = null;
+let sideTab = 'pr';
+const prevStatus = new Map(), prevZone = new Map();
+let soundOn = false, notifyOn = false;
+try { soundOn = localStorage.getItem('ahj.sound') === '1'; notifyOn = localStorage.getItem('ahj.notify') === '1' && 'Notification' in window && Notification.permission === 'granted'; } catch {}
+
+const live = () => S.agents.filter((a) => a.status !== 'dead');
+const dead = () => S.agents.filter((a) => a.status === 'dead').sort((a, b) => b.lastAt - a.lastAt);
+
+function slotPos(zone, i, n) {
+  const z = Z[zone];
+  if (zone === 'idle') { const ring = i < 8 ? 0 : 1, k = ring ? i - 8 : i, m = ring ? Math.max(1, n - 8) : Math.min(n, 8), ang = (k / m) * Math.PI * 2 + 0.4 + ring * 0.3, rr = 20 + ring * 10; return [82 + Math.cos(ang) * rr, 230 + Math.sin(ang) * rr * 0.5]; }
+  if (zone === 'waiting') { const row = Math.floor(i / 6) % 3, col = i % 6; return [row % 2 ? 230 - col * 11 : 178 + col * 11, 184 + row * 12]; }
+  return [z.ex + ((i % 5) - 2) * 9, z.ey + Math.floor(i / 5) * 9];
+}
+function layoutTargets() {
+  const groups = {};
+  for (const a of live()) (groups[a.zone] = groups[a.zone] || []).push(a);
+  for (const [zone, list] of Object.entries(groups)) {
+    list.sort((a, b) => a.startedAt - b.startedAt || (a.id < b.id ? -1 : 1));
+    list.forEach((a, i) => {
+      const z = Z[zone];
+      const [tx, ty] = z.ride ? [z.ex + ((i % 3) - 1) * 4, z.ey] : slotPos(zone, i, list.length);
+      let s = anim.get(a.id);
+      if (!s) { const first = !S._seen; s = { x: first ? tx : GATE[0], y: first ? ty : GATE[1], px: tx, py: ty, path: first ? [] : [HUB, ...(WAYPOINTS[zone] || []), [tx, ty]], zone, onRide: false, seed: hash(a.id) }; anim.set(a.id, s); return; }
+      if (s.zone !== zone) {
+        if (s.onRide) { s.x = s.px; s.y = s.py; }
+        s.onRide = false; s.car = null;
+        s.path = [[HUB[0] + (s.seed % 9) - 4, HUB[1] + (s.seed % 5) - 2], ...(WAYPOINTS[zone] || []), [tx, ty]];
+        s.zone = zone;
+      } else if (!z.ride && !s.path.length && Math.hypot(s.x - tx, s.y - ty) > 0.5) s.path = [[tx, ty]];
+    });
+  }
+  for (const id of [...anim.keys()]) if (!byId.has(id) || byId.get(id).status === 'dead') anim.delete(id);
+  S._seen = true;
+}
+
+/* ---------- sprites ---------- */
+const SHIRTS = ['#ff7eb6', '#b07cff', '#6cc6ff', '#ffb36b', '#ff5d8f', '#7fd8be', '#f4a9c9', '#fff0f7'];
+const HAIR = ['#2a1a12', '#5a3a22', '#d9a441', '#1b1b1b', '#a0402a', '#e8e0d0', '#3a2a4a'];
+const SKIN = ['#f2c9a0', '#e0ac7e', '#b5794d', '#8a5634', '#f6d7b8'];
+const look = (s) => ({ shirt: SHIRTS[s.seed % 8], hair: HAIR[(s.seed >>> 4) % 7], skin: SKIN[(s.seed >>> 9) % 5] });
+function marker(a, x, y, t) {
+  if (a.status === 'waiting' && Math.floor(t / 400) % 2) { rect(ctx, x + 2, y - 7, 3, 5, '#ffd36b'); rect(ctx, x + 3, y - 6, 1, 2, '#1a1530'); rect(ctx, x + 3, y - 3, 1, 1, '#1a1530'); }
+  if (selected === a.id || hovered === a.id) { const ay = y - 9 - (Math.floor(t / 250) % 2); rect(ctx, x + 1, ay, 5, 1, '#ffd36b'); rect(ctx, x + 2, ay + 1, 3, 1, '#ffd36b'); rect(ctx, x + 3, ay + 2, 1, 1, '#ffd36b'); }
+}
+function drawWalker(a, s, t) {
+  const { shirt, hair, skin } = look(s), pants = '#2b2d48', h = s.seed;
+  const sitting = a.zone === 'idle' && !s.path.length;
+  const x = Math.round(s.x) - 3, y = Math.round(s.y) - 12 + (sitting ? 2 : 0);
+  disc(ctx, s.x, s.y + 0.5, 3, 'rgba(0,0,0,.3)', 1);
+  rect(ctx, x + 1, y, 5, 2, hair); rect(ctx, x, y + 1, 1, 3, hair); rect(ctx, x + 6, y + 1, 1, 2, hair);
+  rect(ctx, x + 1, y + 2, 5, 3, skin); rect(ctx, x + 2, y + 3, 1, 1, '#1a1a2a'); rect(ctx, x + 4, y + 3, 1, 1, '#1a1a2a');
+  rect(ctx, x + 1, y + 5, 5, 4, shirt); rect(ctx, x, y + 5, 1, 3, shirt); rect(ctx, x + 6, y + 5, 1, 3, shirt); rect(ctx, x, y + 8, 1, 1, skin); rect(ctx, x + 6, y + 8, 1, 1, skin);
+  if (!sitting) { const step = s.path.length ? (Math.floor(t / 140 + h) % 2) : 0; rect(ctx, x + 1, y + 9, 2, 2 - step, pants); rect(ctx, x + 4, y + 9, 2, 1 + step, pants); rect(ctx, x + 1, y + 11 - step, 2, 1, '#121222'); rect(ctx, x + 4, y + 10 + step, 2, 1, '#121222'); }
+  else { rect(ctx, x + 1, y + 9, 5, 1, pants); if (Math.floor(t / 900 + h) % 4 === 0) { rect(ctx, x + 7, y + 4, 2, 2, '#ffb3cf'); rect(ctx, x + 7, y + 6, 2, 2, '#d9a441'); } }
+  if (a.source === 'codex') rect(ctx, x + 2, y - 1, 3, 1, '#e8e8f0');
+  marker(a, x, y, t);
+  s.px = s.x; s.py = s.y;
+}
+/* a seated rider: head + shoulders only; (x,y) = seat position */
+function drawRider(a, s, x, y, t) {
+  const { shirt, hair, skin } = look(s); x = Math.round(x) - 3; y = Math.round(y) - 7;
+  rect(ctx, x + 1, y, 5, 2, hair); rect(ctx, x + 1, y + 2, 5, 3, skin); rect(ctx, x + 2, y + 3, 1, 1, '#1a1a2a'); rect(ctx, x + 4, y + 3, 1, 1, '#1a1a2a');
+  rect(ctx, x + 1, y + 5, 5, 2, shirt); if (a.source === 'codex') rect(ctx, x + 2, y - 1, 3, 1, '#e8e8f0');
+  if ((a.pace || 0) >= 8) { rect(ctx, x, y - 1, 1, 2, skin); rect(ctx, x + 6, y - 1, 1, 2, skin); } // hands up when going fast
+  marker(a, x, y, t);
+  s.px = x + 3; s.py = y + 7;
+}
+function drawTomb(x, y) { rect(ctx, x - 3, y - 7, 7, 8, '#7d8296'); rect(ctx, x - 2, y - 8, 5, 1, '#7d8296'); rect(ctx, x - 3, y - 7, 1, 8, '#9aa0b5'); rect(ctx, x, y - 5, 1, 4, '#5a5f70'); rect(ctx, x - 1, y - 4, 3, 1, '#5a5f70'); rect(ctx, x - 4, y + 1, 9, 1, '#5fae74'); }
+
+/* ---------- rides ---------- */
+const R = { cU: 0, fa: 0, ca: 0, dropP: 0 };
+const riders = (zone) => live().filter((a) => a.zone === zone && anim.get(a.id) && anim.get(a.id).onRide).sort((a, b) => a.startedAt - b.startedAt);
+function boardRiders(dt) {
+  for (const a of live()) { const s = anim.get(a.id); if (s && Z[a.zone].ride && !s.path.length && !s.onRide) s.onRide = true; }
+}
+function rideCoaster(dt, t) {
+  const rs = riders('building'), pace = rs.length ? Math.min(30, Math.max(...rs.map((a) => a.pace || 0))) : 0, [, y] = trackPt(R.cU);
+  const hold = rs.some((a) => a.id === hovered || a.id === selected) ? 0.08 : 1;
+  const sp = (0.18 + Math.min(pace, 20) * 0.022) * (0.7 + (y - 30) / 160) * hold;
+  R.cU = (R.cU + dt * Math.max(0.03, sp)) % (Math.PI * 2);
+  const n = Math.max(3, rs.length), gap = Math.min(0.5, Math.max(0.12, (Math.PI * 2 - 0.4) / n)), seg = [];
+  for (let k = n - 1; k >= 0; k--) { const [x, yy] = trackPt(R.cU - k * gap); seg.push([k, x, yy]); }
+  for (const [k, x, yy] of seg) {
+    if (rs[k]) drawRider(rs[k], anim.get(rs[k].id), x + 1, yy - 2, t);
+    rect(ctx, x - 3, yy - 3, 8, 3, k === 0 ? '#ffd36b' : '#3d6cff'); rect(ctx, x - 3, yy, 8, 1, '#1a1a2a'); rect(ctx, x - 3, yy - 3, 8, 1, 'rgba(255,255,255,.35)');
+  }
+  if (pace >= 8 && Math.floor(t / 60) % 2) { const [x, yy] = trackPt(R.cU - n * gap); rect(ctx, x - 6, yy - 2, 2, 1, '#fff'); rect(ctx, x - 9, yy - 1, 2, 1, '#fff'); } // speed lines
+}
+function rideBumper(dt, t) {
+  const rs = riders('fixing');
+  for (const a of rs) {
+    const s = anim.get(a.id);
+    if (!s.car) { const ang = (s.seed % 628) / 100; s.car = { x: 300 + (s.seed % 64), y: 50 + (s.seed % 28), vx: Math.cos(ang), vy: Math.sin(ang) }; }
+    const c = s.car, sp = 8 + Math.min(30, a.pace || 0) * 2.2, L = Math.hypot(c.vx, c.vy) || 1;
+    c.x += c.vx / L * sp * dt; c.y += c.vy / L * sp * dt;
+    if (c.x < 289 || c.x > 375) { c.vx *= -1; c.x = Math.max(289, Math.min(375, c.x)); c.hit = t; }
+    if (c.y < 46 || c.y > 82) { c.vy *= -1; c.y = Math.max(46, Math.min(82, c.y)); c.hit = t; }
+  }
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { const A = anim.get(rs[i].id).car, B = anim.get(rs[j].id).car, dx = B.x - A.x, dy = B.y - A.y; if (dx * dx + dy * dy < 100) { [A.vx, B.vx] = [B.vx, A.vx]; [A.vy, B.vy] = [B.vy, A.vy]; A.x -= dx * 0.2; A.y -= dy * 0.2; B.x += dx * 0.2; B.y += dy * 0.2; A.hit = B.hit = t; } }
+  rs.sort((a, b) => anim.get(a.id).car.y - anim.get(b.id).car.y);
+  for (const a of rs) { const s = anim.get(a.id), c = s.car, col = SHIRTS[(s.seed >>> 3) % 8];
+    rect(ctx, c.x - 5, c.y - 3, 11, 6, '#111'); rect(ctx, c.x - 4, c.y - 3, 9, 5, col); rect(ctx, c.x - 4, c.y - 3, 9, 1, 'rgba(255,255,255,.4)');
+    line(ctx, c.x + 3, c.y - 3, c.x + 3, 33, 'rgba(200,200,220,.5)');
+    drawRider(a, s, c.x, c.y - 1, t);
+    if (c.hit && t - c.hit < 180) { rect(ctx, c.x + 6, c.y - 4, 1, 1, '#fff7a0'); rect(ctx, c.x + 7, c.y - 6, 1, 1, '#ffd36b'); rect(ctx, c.x - 7, c.y - 5, 1, 1, '#fff7a0'); }
+  }
+}
+function rideFerris(dt, t) {
+  const rs = riders('reviewing'), pace = paceOf(rs), cx = 500, cy = 78, Rr = 44;
+  R.fa += dt * (0.06 + pace * 0.025);
+  for (let k = 0; k < 360; k += 1.2) { const a = k * Math.PI / 180; rect(ctx, cx + Math.cos(a) * Rr, cy + Math.sin(a) * Rr, 1, 1, '#f2eefc'); rect(ctx, cx + Math.cos(a) * (Rr - 4), cy + Math.sin(a) * (Rr - 4), 1, 1, '#b9b3d4'); }
+  for (let k = 0; k < 8; k++) { const a = R.fa + k * Math.PI / 4; line(ctx, cx, cy, cx + Math.cos(a) * Rr, cy + Math.sin(a) * Rr, '#cfc9e3'); }
+  disc(ctx, cx, cy, 3, '#ffd36b');
+  const cols = ['#ff5d6c', '#ffd36b', '#5be08a', '#6cb6ff', '#ff8ad8', '#b07cff', '#ff9a3d', '#2fd3c4'];
+  for (let k = 0; k < 8; k++) {
+    const a = R.fa + k * Math.PI / 4, gx = cx + Math.cos(a) * Rr, gy = cy + Math.sin(a) * Rr;
+    rect(ctx, gx, gy, 1, 3, '#888');
+    const who = rs[k];
+    if (who) drawRider(who, anim.get(who.id), gx + 1, gy + 7, t);
+    rect(ctx, gx - 4, gy + 6, 10, 5, cols[k]); rect(ctx, gx - 4, gy + 6, 10, 1, 'rgba(255,255,255,.4)'); rect(ctx, gx - 3, gy + 2, 8, 1, cols[k]);
+  }
+  rs.slice(8).forEach((a, i) => drawRider(a, anim.get(a.id), 486 + i * 8, 152, t));
+}
+function rideCarousel(dt, t) {
+  const rs = riders('newtask'), pace = paceOf(rs);
+  R.ca += dt * (0.4 + pace * 0.06);
+  const horses = [];
+  for (let k = 0; k < 8; k++) { const a = R.ca + k * Math.PI / 4; horses.push([k, 330 + Math.cos(a) * 22, 163 + Math.sin(a) * 7 + Math.sin(t / 260 + k * 1.3) * 1.5, Math.sin(a)]); }
+  horses.sort((p, q) => p[3] - q[3]);
+  const drawHorse = ([k, x, y]) => { rect(ctx, x, 140, 1, y - 140, '#ffd36b'); rect(ctx, x - 3, y - 2, 7, 3, '#f8f4ec'); rect(ctx, x + 3, y - 4, 2, 3, '#f8f4ec'); rect(ctx, x - 2, y + 1, 1, 2, '#d8d0c0'); rect(ctx, x + 2, y + 1, 1, 2, '#d8d0c0'); rect(ctx, x - 1, y - 2, 3, 1, ['#ff5d6c', '#6cb6ff', '#5be08a', '#ff8ad8'][k % 4]); if (rs[k]) drawRider(rs[k], anim.get(rs[k].id), x, y - 2, t); };
+  horses.filter((h) => h[3] < 0).forEach(drawHorse);
+  rect(ctx, 329, 138, 3, 28, '#d9a441');
+  horses.filter((h) => h[3] >= 0).forEach(drawHorse);
+  for (let i = 0; i < 10; i++) { const w = 6 + i * 2.6; for (let x = -w; x < w; x++) rect(ctx, 330 + x, 128 + i, 1, 1, Math.floor((x + R.ca * 6) / 4) % 2 ? '#ff6fae' : '#fff6e8'); }
+  rect(ctx, 304, 138, 53, 2, '#ffd36b'); rect(ctx, 330, 122, 1, 6, '#ccc'); rect(ctx, 331, 122, 4, 3, '#ff6fae');
+  rs.slice(8).forEach((a, i) => drawRider(a, anim.get(a.id), 316 + i * 8, 190, t));
+}
+function rideDrop(dt, t) {
+  const rs = riders('merging'), pace = paceOf(rs), period = Math.max(2.5, 11 - pace * 0.45);
+  R.dropP = (R.dropP + dt / period) % 1;
+  const p = R.dropP; let h;
+  if (p < 0.7) h = 1 - Math.pow(1 - p / 0.7, 2); else if (p < 0.8) h = 1; else { const q = (p - 0.8) / 0.2; h = 1 - q * q; }
+  const y = 206 - h * 104;
+  const n = Math.min(4, rs.length);
+  rs.slice(0, 4).forEach((a, j) => drawRider(a, anim.get(a.id), 588 + (j - (n - 1) / 2) * 7, y, t));
+  rect(ctx, 576, y, 25, 4, '#ff6fae'); rect(ctx, 576, y, 25, 1, '#ffb3bd'); rect(ctx, 584, y - 2, 9, 2, '#ffd36b');
+  if (p > 0.8 && Math.floor(t / 50) % 2) { rect(ctx, 572, y - 8, 1, 4, '#fff'); rect(ctx, 604, y - 10, 1, 5, '#fff'); }
+  rs.slice(4).forEach((a, i) => drawRider(a, anim.get(a.id), 572 + i * 8, 228, t));
+  return y;
+}
+
+/* ---------- fireworks ---------- */
+const sparks = [];
+function firework(x = 520 + Math.random() * 90, y = 18 + Math.random() * 40) { sparks.push({ x: 588, y: 84, tx: x, ty: y, rocket: true, col: BULB_COLORS[(Math.random() * 5) | 0] }); }
+function drawSparks(dt) {
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i];
+    if (s.rocket) { s.x += (s.tx - s.x) * dt * 2.4; s.y += (s.ty - s.y) * dt * 2.4; rect(ctx, s.x, s.y, 1, 2, '#fff'); if (Math.abs(s.y - s.ty) < 2) { sparks.splice(i, 1); for (let k = 0; k < 34; k++) { const a = k / 34 * 6.283, v = 22 + Math.random() * 18; sparks.push({ x: s.x, y: s.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1.4, col: s.col }); } } continue; }
+    s.vy += 18 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; if (s.life <= 0) { sparks.splice(i, 1); continue; }
+    rect(ctx, s.x, s.y, 1, 1, s.life > 0.5 ? s.col : '#fff7d0'); }
+}
+
+/* ---------- glow sprites ---------- */
+const glowCache = new Map();
+function glowSprite(rgb, r) { const k = rgb + r; if (glowCache.has(k)) return glowCache.get(k); const c = document.createElement('canvas'); c.width = c.height = r * 2; const g = c.getContext('2d'), gr = g.createRadialGradient(r, r, 0, r, r, r); gr.addColorStop(0, `rgba(${rgb},1)`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(0, 0, r * 2, r * 2); glowCache.set(k, c); return c; }
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(',');
+function glow(x, y, r, rgb, a) { if (a <= 0) return; ctx.globalAlpha = Math.min(1, a); ctx.drawImage(glowSprite(rgb, r), x - r, y - r); ctx.globalAlpha = 1; }
+
+/* ---------- frame ---------- */
+function nightAlpha() { const d = new Date(), h = d.getHours() + d.getMinutes() / 60; if (h >= 21 || h < 5) return 0.52; if (h >= 19) return 0.2 + (h - 19) * 0.16; if (h < 7) return 0.52 - (h - 5) * 0.22; return 0.04; }
+const GHOSTS = [0, 1, 2];
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  ctx.drawImage(bg, 0, 0);
+  // pond shimmer
+  for (let i = 0; i < 8; i++) if ((Math.floor(t / 400) + i) % 3) rect(ctx, POND.x - 20 + ((i * 13 + t / 120) % 40), POND.y - 6 + (i * 5) % 12, 2, 1, '#8cc4f2');
+  // walkers move
+  for (const a of live()) { const s = anim.get(a.id); if (!s || !s.path.length) continue; const [tx, ty] = s.path[0], dx = tx - s.x, dy = ty - s.y, dist = Math.hypot(dx, dy), sp = 46 * dt; if (dist <= sp) { s.x = tx; s.y = ty; s.path.shift(); } else { s.x += dx / dist * sp; s.y += dy / dist * sp; } }
+  boardRiders(dt);
+  rideCoaster(dt, t); rideBumper(dt, t); rideFerris(dt, t); const dropY = rideDrop(dt, t);
+  // graveyard + ghosts
+  const d = dead(); TOMB_SLOTS.forEach(([x, y], i) => { if (i < d.length) drawTomb(x, y); });
+  if (d.length) for (const g of GHOSTS) { const gx = 410 + g * 34 + Math.sin(t / 900 + g * 2) * 10, gy = 196 + Math.sin(t / 600 + g) * 4 - g * 6; ctx.globalAlpha = 0.55 + 0.25 * Math.sin(t / 400 + g); rect(ctx, gx - 2, gy, 5, 5, '#f4f4ff'); rect(ctx, gx - 1, gy - 1, 3, 1, '#f4f4ff'); rect(ctx, gx - 2, gy + 5, 1, 1, '#f4f4ff'); rect(ctx, gx + 2, gy + 5, 1, 1, '#f4f4ff'); rect(ctx, gx - 1, gy + 1, 1, 1, '#1a1428'); rect(ctx, gx + 1, gy + 1, 1, 1, '#1a1428'); ctx.globalAlpha = 1; }
+  // everyone on foot, back to front, with the carousel in depth order
+  const walkers = live().filter((a) => { const s = anim.get(a.id); return s && !s.onRide; }).sort((a, b) => anim.get(a.id).y - anim.get(b.id).y);
+  let carouselDone = false;
+  for (const a of walkers) { const s = anim.get(a.id); if (!carouselDone && s.y > 170) { rideCarousel(dt, t); carouselDone = true; } drawWalker(a, s, t); }
+  if (!carouselDone) rideCarousel(dt, t);
+  drawSparks(dt);
+  // night + lights
+  const na = nightAlpha();
+  ctx.fillStyle = `rgba(46,12,60,${na})`; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+  const L = Math.min(1, na * 2.2), tw = t / 300;
+  for (let i = 0; i < BULBS.length; i++) { const [x, y, c] = BULBS[i]; const on = 0.7 + 0.3 * Math.sin(tw + i); rect(ctx, x, y, 1, 1, c); glow(x, y, 5, hexRgb(c), (0.35 * L + 0.04) * on); }
+  // ride lights
+  for (let k = 0; k < 16; k++) { const a = R.fa + k * Math.PI / 8; glow(500 + Math.cos(a) * 44, 78 + Math.sin(a) * 44, 5, hexRgb(BULB_COLORS[k % 5]), 0.5 * L); }
+  glow(330, 134, 26, '255,200,120', 0.35 * L + 0.05);
+  glow(588, dropY + 2, 12, '255,90,110', 0.4 * L);
+  for (const [wx, wy] of [[433, 208], [457, 208], [423, 205], [473, 205]]) glow(wx, wy, 7, '140,255,160', (0.3 + 0.2 * Math.sin(t / 300 + wx)) * L);
+  for (const s of sparks) if (!s.rocket) glow(s.x, s.y, 4, hexRgb(s.col), s.life * 0.5);
+  ctx.globalCompositeOperation = 'source-over';
+  placeOverlay();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- overlay (labels, tags, tombs, board) ---------- */
+const pct = (x, y) => `left:${(x / W * 100).toFixed(3)}%;top:${(y / H * 100).toFixed(3)}%`;
+const WORK_ICON = { newtask: '🎠', building: '🔨', fixing: '🐛', reviewing: '🔍', merging: '🚀' };
+const speedBadge = (a) => a.status !== 'working' ? '' : (a.pace || 0) >= 12 ? '⚡⚡' : (a.pace || 0) >= 4 ? '⚡' : '🐢';
+const tagEls = new Map();
+function buildOverlay() {
+  const counts = {}; for (const a of S.agents) counts[a.zone] = (counts[a.zone] || 0) + 1;
+  let html = '';
+  for (const [k, z] of Object.entries(Z)) html += `<div class="zl ${counts[k] && k !== 'graveyard' ? 'on' : ''}" style="${pct(z.lx, z.ly + 10)}"><span class="ic">${z.icon}</span>${z.label} <b>${counts[k] || 0}</b></div>`;
+  html += `<div class="zl" style="${pct(411, 104)};font-size:4.6em"><span class="ic">📌</span>OPEN PRS <b>${S.prs.length}</b></div>`;
+  html += `<div class="zl gate" style="${pct(350, 246)}">🎪 WELCOME TO JIAQI'S AGENT AMUSEMENT PARK</div>`;
+  const top = S.prs[0];
+  html += `<div class="board" data-pr="${top ? esc(top.url) : ''}" style="${pct(396, 111)};width:${30 / W * 100}%;height:${16 / H * 100}%;font-size:1.9em">${top ? `<b>#${top.number}</b> ${esc(top.title.slice(0, 40))}<i>${top.agents.length ? 'agent on it' : 'needs an agent'} · ${ago(top.updatedAt)}</i>` : '<i>no open PRs</i>'}</div>`;
+  dead().slice(0, TOMB_SLOTS.length).forEach((a, i) => { const [x, y] = TOMB_SLOTS[i]; html += `<div class="tomb" data-id="${esc(a.id)}" style="${pct(x, y + 1.5)};width:${15 / W * 100}%;text-align:center" title="${esc(a.project)} · ${hhmm(a.startedAt)}–${hhmm(a.lastAt)}">${esc(a.name)}</div>`; });
+  ov.innerHTML = html;
+  tagEls.clear();
+  live().sort((a, b) => b.lastAt - a.lastAt).forEach((a, i) => {
+    const showBub = a.status === 'waiting' ? `<div class="bub wait">⏳ NEEDS YOU</div>` : a.status === 'working' && a.lastAction && i < 3 ? `<div class="bub">${esc(a.lastAction.slice(0, 40))}</div>` : '';
+    const host = document.createElement('div'); host.style.zIndex = 2;
+    host.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:.6em;pointer-events:none">${showBub}<div class="tag${a.status === 'idle' ? ' dim' : ''}" data-id="${esc(a.id)}"><span class="n">${i < 9 ? i + 1 : '·'}</span><span class="own" style="font-size:1em;background:${ownColor(badgeText(a))}">${esc(String(badgeText(a)).toUpperCase().slice(0, 12))}</span>${esc(a.name)}${a.status === 'working' ? `<span class="lv">${WORK_ICON[a.work] || ''}</span>` : ''}<span class="lv">${speedBadge(a) || a.level}</span></div></div>`;
+    ov.appendChild(host); tagEls.set(a.id, host);
+  });
+}
+function placeOverlay() {
+  const s = cv.clientWidth / W; ov.style.fontSize = (s * 0.85) + 'px';
+  for (const [id, el] of tagEls) { const st = anim.get(id); if (!st) continue; el.style.left = (st.px / W * 100) + '%'; el.style.top = ((st.py - (st.onRide ? 10 : 15)) / H * 100) + '%';
+    const tg = el.querySelector('.tag'); if (tg) tg.classList.toggle('sel', id === selected || id === hovered); }
+}
+ov.addEventListener('mouseover', (e) => { const t = e.target.closest('.tag[data-id]'); hovered = t ? t.dataset.id : null; });
+ov.addEventListener('mouseout', (e) => { if (e.target.closest('.tag[data-id]')) hovered = null; });
+ov.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-id],[data-pr]'); if (!t) return;
+  if (t.dataset.pr) { window.open(t.dataset.pr, '_blank'); return; }
+  select(t.dataset.id);
+});
+document.addEventListener('click', (e) => { const n = e.target.closest('.nm[data-id]'); if (n) select(n.dataset.id); });
+
+/* ---------- picking ---------- */
+function pick(ev) {
+  const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * W, y = (ev.clientY - r.top) / r.height * H;
+  let best = null, bd = 64;
+  for (const a of live()) { const s = anim.get(a.id); if (!s) continue; const d = (s.px - x) ** 2 + (s.py - 6 - y) ** 2; if (d < bd) { bd = d; best = a.id; } }
+  return best;
+}
+cv.addEventListener('mousemove', (e) => { hovered = pick(e); cv.style.cursor = hovered ? 'pointer' : 'default'; });
+cv.addEventListener('click', (e) => { const id = pick(e); select(id); });
+window.addEventListener('keydown', (e) => {
+  if (e.target.closest('input,textarea')) return;
+  if (e.key === 'Escape') select(null);
+  if (/^[1-9]$/.test(e.key)) { const L = live().sort((a, b) => b.lastAt - a.lastAt); const a = L[+e.key - 1]; if (a) select(a.id); }
+});
+
+/* ---------- detail card ---------- */
+const ZONE_TXT = { newtask: 'warming up on the carousel (new task)', building: 'riding the roller coaster (building)', fixing: 'in the bumper cars (fixing bugs)', reviewing: 'on the ferris wheel (reviewing)', merging: 'on the drop tower (shipping)', waiting: 'in the ticket queue (waiting for you)', idle: 'eating ice cream (idle)', graveyard: 'in the haunted house (finished)' };
+const WORK_TXT = { newtask: 'just started a new task', building: 'building', fixing: 'fixing bugs', reviewing: 'reviewing', merging: 'shipping / merging' };
+const paceTxt = (a) => a.status !== 'working' ? '' : `${a.pace || 0} actions in the last 5 min · ${(a.pace || 0) >= 12 ? '⚡⚡ zooming' : (a.pace || 0) >= 4 ? '⚡ steady' : '🐢 taking it slow'}`;
+function select(id) { selected = id; renderCard(); }
+function renderCard() {
+  const c = $('card'); const a = selected && byId.get(selected);
+  if (!a) { c.classList.remove('show'); return; }
+  const prs = S.prs.filter((p) => p.agents.includes(a.id));
+  c.innerHTML = `<button class="x" onclick="select(null)">×</button>
+    <h3>${srcIcon(a.source)} ${esc(a.name)} ${badge(a)}${isMine(a) ? '' : ' ' + ownTag(a.project)} <span style="color:var(--muted)">Lv${a.level}</span></h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="pill ${a.status}">${a.status.toUpperCase()}</span> <span>${a.status === 'working' ? '🎢 on the roller coaster · ' + WORK_TXT[a.work] : ZONE_TXT[a.zone]}</span></div>
+    ${paceTxt(a) ? `<div style="margin-top:6px">${paceTxt(a)}</div>` : ''}
+    <div style="color:var(--muted);margin-top:6px">${({ codex: 'Codex', cursor: 'Cursor', claude: 'Claude Code', 'claude-cloud': 'Claude (claude.ai, cloud)', visitor: 'Visitor' })[a.source] || a.source}${a.branch ? ' · ⎇ ' + esc(a.branch) : ''} · ${hhmm(a.startedAt)}–${a.status === 'dead' ? hhmm(a.lastAt) : 'now'} · active ${ago(a.lastAt)} · ${a.toolCount} actions</div>
+    ${a.task ? `<div class="k">TASK</div><div>${esc(a.task)}</div>` : ''}
+    ${a.lastUser && a.lastUser !== a.task ? `<div class="k">LAST ASK</div><div>${esc(a.lastUser)}</div>` : ''}
+    ${a.lastAction ? `<div class="k">NOW</div><div>${esc(a.lastAction)}</div>` : ''}
+    ${prs.length ? `<div class="k">PRS</div>${prs.map((p) => `<div><a href="${esc(p.url)}" target="_blank">#${p.number} ${esc(p.title)}</a></div>`).join('')}` : ''}
+    ${a.edited && a.edited.length ? `<div class="k">FILES TOUCHED</div><ul>${a.edited.map((f) => `<li title="${esc(f.file)}">✎ ${esc(f.file.split('/').slice(-2).join('/'))}</li>`).join('')}</ul>` : ''}
+    <div class="k">RECENT</div><ul>${(a.recent || []).slice().reverse().map((e) => `<li title="${esc(e.text)}"><time>${hhmm(e.t)}</time>${esc(e.text)}</li>`).join('')}</ul>
+    ${a.cwd ? `<div class="k">FOLDER</div><code>${esc(a.cwd)}</code>` : ''}`;
+  c.classList.add('show');
+}
+
+/* ---------- panels ---------- */
+function renderPanels() {
+  const A = S.agents, Lv = live();
+  const n = (st) => A.filter((a) => a.status === st).length;
+  $('counts').innerHTML = `<span>⚡ ${n('working')} working</span><span>⏳ ${n('waiting')} waiting</span><span>💤 ${n('idle')} idle</span><span>👻 ${n('dead')} done</span>`;
+  const teamMode = A.some((a) => !isMine(a));
+  const key = (a) => teamMode ? (a.owner || '?') : a.project;
+  const projs = {}; for (const a of A) { const p = projs[key(a)] = projs[key(a)] || { all: 0, working: 0, last: 0 }; p.all++; if (a.status === 'working') p.working++; p.last = Math.max(p.last, a.lastAt); }
+  $('projects').innerHTML = (S.team && S.team.enabled ? `<div style="color:var(--muted);font-size:17px">👭 team ${S.team.error ? '<span style="color:var(--red)">· ' + esc(S.team.error) + '</span>' : '· ' + (S.team.members.length + 1) + ' houses connected'}</div>` : '')
+    + (Object.entries(projs).sort((a, b) => b[1].last - a[1].last).map(([p, v]) => `<div class="proj" title="${esc(p)} · ${v.all} agents · ${v.working} working">${ownTag(p)}<span class="pn">${v.all} ${v.all === 1 ? 'agent' : 'agents'}${v.working ? ` · <b>${v.working} working</b>` : ''}</span></div>`).join('') || '<div class="empty">No agent sessions yet.</div>');
+  const tot = Math.max(1, A.length);
+  $('sbar').innerHTML = [['working', '#5be08a'], ['waiting', '#ffd36b'], ['idle', '#ff9a3d'], ['dead', '#4a4c7a']].map(([k, c]) => `<i style="width:${n(k) / tot * 100}%;background:${c}"></i>`).join('');
+  $('livetxt').textContent = S.mode === 'demo' ? 'DEMO' : S.remote ? `LIVE · ${S.publishedAt ? ago(S.publishedAt) : ''}` : 'LIVE';
+  const lp = $('livelink'); if (lp) { const u = S.live && S.live.pageUrl; lp.style.display = u ? 'inline-block' : 'none'; if (u) { lp.href = u; lp.title = S.live.pushedAt ? 'published ' + ago(S.live.pushedAt) : 'publishing…'; } } $('live').classList.toggle('demo', S.mode === 'demo');
+  // chat
+  $('chatn').textContent = S.chat.length;
+  $('chatlist').innerHTML = S.chat.map((m) => { const a = byId.get(m.agent); if (!a) return '';
+    const who = `<span class="nm" data-id="${esc(a.id)}">${srcIcon(a.source)} ${esc(a.name)}</span>`;
+    const you = isMine(a) ? 'YOU' : esc(a.owner);
+    return `<div class="msg"><div class="hd"><time>${hhmm(m.t)}</time>${badge(a)}${m.dir === 'in' ? `<b>${you}</b> → ${who}` : `${who} → <b>${you}</b>`}</div><div class="tx">▸ ${esc(m.text)}</div></div>`; }).join('') || '<div class="empty">Messages between you and your agents show up here.</div>';
+  // side
+  $('prn').textContent = S.prs.length; $('fn').textContent = S.files.length;
+  $('tPR').classList.toggle('on', sideTab === 'pr'); $('tFiles').classList.toggle('on', sideTab === 'files');
+  if (sideTab === 'pr') {
+    $('sidelist').innerHTML = S.prs.map((p) => {
+      const b = [];
+      if (p.draft) b.push('<span class="bd">draft</span>');
+      if (p.ci) b.push(p.ci === 'pass' ? '<span class="bd ok">✓ CI</span>' : p.ci === 'fail' ? '<span class="bd bad">✗ CI</span>' : '<span class="bd warn">… CI</span>');
+      b.push(p.review === 'APPROVED' ? '<span class="bd ok">approved</span>' : p.review === 'CHANGES_REQUESTED' ? '<span class="bd warn">✎ changes</span>' : '<span class="bd">needs review</span>');
+      if (p.conflict) b.push('<span class="bd bad">⚠ conflict</span>');
+      const ag = p.agents.map((id) => byId.get(id)).filter(Boolean);
+      return `<div class="pr"><a href="${esc(p.url)}" target="_blank" title="${esc(p.title)}"><b>#${p.number}</b>${esc(p.title)}</a><div class="badges">${b.join('')}</div>
+        <div class="who">${ag.length ? ag.map((a) => `⚔️ ${badge(a)} <span class="nm" data-id="${esc(a.id)}">${srcIcon(a.source)} ${esc(a.name)}</span>`).join(' ') : `${p.repo ? esc(p.repo) + ' · ' : ''}waiting for an agent`}</div></div>`;
+    }).join('') || `<div class="empty">${S.prError ? 'GitHub CLI not available. Install it and run <code>gh auth login</code> to see PRs.' : 'No open PRs in the repos your agents are working in.'}</div>`;
+  } else {
+    $('sidelist').innerHTML = S.files.map((f) => { const ag = f.agents.map((id) => byId.get(id)).filter(Boolean);
+      return `<div class="pr"><div title="${esc(f.file)}">${f.agents.length > 1 ? '⚠️' : '🔒'} <b>${esc(f.file.split('/').pop())}</b> <span style="color:var(--muted)">${esc(f.file.split('/').slice(-3, -1).join('/'))}</span></div>
+        <div class="who">${ag.map((a) => `<span class="nm" data-id="${esc(a.id)}">${esc(a.name)}</span>`).join(', ')} · ${ago(f.t)}${f.agents.length > 1 ? ' · <span style="color:var(--red)">2+ agents editing</span>' : ''}</div></div>`; }).join('') || '<div class="empty">Files your live agents edited in the last 30 minutes appear here. Two agents on one file gets a ⚠️.</div>';
+  }
+}
+$('tPR').onclick = () => { sideTab = 'pr'; renderPanels(); };
+$('tFiles').onclick = () => { sideTab = 'files'; renderPanels(); };
+$('bBig').onclick = () => { const p = $('panels'); p.classList.toggle('big'); $('bBig').textContent = p.classList.contains('big') ? '▼ smaller' : '▲ bigger'; };
+function syncBtns() { $('bSound').textContent = soundOn ? '🔊' : '🔈'; $('bSound').classList.toggle('on', soundOn); $('bNotify').textContent = notifyOn ? '🔔' : '🔕'; $('bNotify').classList.toggle('on', notifyOn); $('bDemo').classList.toggle('on', demo); }
+$('bSound').onclick = () => { soundOn = !soundOn; try { localStorage.setItem('ahj.sound', soundOn ? '1' : '0'); } catch {} if (soundOn) beep(); syncBtns(); };
+$('bNotify').onclick = async () => {
+  if (!('Notification' in window)) return toast('Notifications are not supported here');
+  if (!notifyOn && Notification.permission !== 'granted') { const p = await Notification.requestPermission(); if (p !== 'granted') return toast('Notifications blocked by the browser'); }
+  notifyOn = !notifyOn; try { localStorage.setItem('ahj.notify', notifyOn ? '1' : '0'); } catch {} syncBtns();
+};
+$('bDemo').onclick = () => { demo = !demo; anim.clear(); S._seen = false; syncBtns(); refresh(); };
+setInterval(() => { const d = new Date(); $('clock').textContent = (d.getHours() >= 19 || d.getHours() < 7 ? '🌙 ' : '☀️ ') + d.toLocaleTimeString('en-GB'); }, 1000);
+
+/* ---------- alerts ---------- */
+let actx;
+function beep() { try { actx = actx || new AudioContext(); const o = actx.createOscillator(), g = actx.createGain(); o.type = 'square'; o.frequency.setValueAtTime(660, actx.currentTime); o.frequency.setValueAtTime(880, actx.currentTime + 0.09); g.gain.setValueAtTime(0.05, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.25); o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.26); } catch {} }
+function toast(msg) { const d = document.createElement('div'); d.textContent = msg; $('toast').appendChild(d); setTimeout(() => d.remove(), 5000); }
+function checkAlerts() {
+  const first = prevStatus.size === 0;
+  for (const a of S.agents) {
+    const before = prevStatus.get(a.id);
+    const zBefore = prevZone.get(a.id);
+    if (a.work === 'merging' && zBefore && zBefore !== 'merging') { firework(); setTimeout(() => firework(), 450); }
+    prevZone.set(a.id, a.work);
+    if (!first && isMine(a) && a.status === 'waiting' && before && before !== 'waiting') {
+      toast(`⏳ ${a.name} (${a.project}) is waiting for you`);
+      if (soundOn) beep();
+      if (notifyOn && document.hidden) try { new Notification('Agent House Jiaqi', { body: `${a.name} in ${a.project} is waiting for you` }); } catch {}
+    }
+    prevStatus.set(a.id, a.status);
+  }
+}
+
+/* ---------- data ---------- */
+function apply(data) {
+  S = Object.assign({ agents: [], prs: [], files: [], chat: [] }, data, { _seen: S._seen });
+  for (const a of S.agents) { a.work = a.zone; if (a.status === 'working') a.zone = 'building'; }
+  byId = new Map(S.agents.map((a) => [a.id, a]));
+  layoutTargets(); buildOverlay(); renderPanels(); checkAlerts();
+  if (selected) renderCard();
+  const bn = $('banner');
+  bn.classList.toggle('demo', S.mode === 'demo');
+  if (S.remote && Date.now() - (S.publishedAt || 0) > 5 * 60000) { bn.style.display = 'block'; bn.innerHTML = `📡 ${esc(S.owner)}'s park is offline · last update ${S.publishedAt ? ago(S.publishedAt) : 'never'}`; }
+  else if (S.remote && !live().length) { bn.style.display = 'block'; bn.innerHTML = `📡 live from ${esc(S.owner)}'s Mac · no agents running right now`; }
+  else if (S.remote) bn.style.display = 'none';
+  else if (S.mode === 'demo' && S._remoteMissing) { bn.style.display = 'block'; bn.innerHTML = 'DEMO DATA · the live snapshot could not be loaded'; }
+  else if (S.mode === 'demo') { bn.style.display = 'block'; bn.innerHTML = location.protocol === 'file:' || S._offline ? '🎲 DEMO — these agents are made up. Your park server is not running: start it with <code>node server.js</code>, then reload.' : '🎲 DEMO — these agents are made up · press 🎲 again for your real agents'; }
+  else if (S.agents.length === 0) { bn.style.display = 'block'; bn.innerHTML = 'No agent sessions in the last 48 h · start a Codex or Claude Code task and it will walk in'; }
+  else if (!live().length) { const d = dead(); bn.style.display = 'block'; bn.innerHTML = `No agents running right now · ${d.length} finished in the 👻 haunted house (last one ${ago(d[0].lastAt)}) · start a Codex task and it will ride the 🎢`; }
+  else bn.style.display = 'none';
+}
+/* ---------- live mode (GitHub Pages): read the snapshot the Mac publishes to a gist ---------- */
+const REMOTE = location.protocol !== 'file:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+let LIVE = null, remoteState = null, remoteAt = 0;
+async function fetchRemote() {
+  if (!LIVE) {
+    const q = new URLSearchParams(location.search);
+    try { LIVE = await fetch('live.json', { cache: 'no-store' }).then((r) => r.json()); } catch { LIVE = {}; }
+    if (q.get('gist')) LIVE.gistId = q.get('gist');
+    if (q.get('owner')) LIVE.owner = q.get('owner');
+  }
+  if (!LIVE.gistId) throw new Error('no gist configured');
+  if (remoteState && Date.now() - remoteAt < 55000) return remoteState;   // GitHub allows 60 anonymous calls / hour
+  const g = await fetch(`https://api.github.com/gists/${LIVE.gistId}`, { cache: 'no-store' });
+  if (!g.ok) { if (remoteState) return remoteState; throw new Error('gist ' + g.status); }
+  const gist = await g.json();
+  const houses = [];
+  for (const [fname, f] of Object.entries(gist.files || {})) {
+    if (!fname.endsWith('.json')) continue;
+    let d = null;
+    try { d = f.truncated ? await fetch(f.raw_url).then((r) => r.json()) : JSON.parse(f.content); } catch {}
+    if (d && d.app === 'agent-house' && Array.isArray(d.agents)) houses.push(d);
+  }
+  const owner = String(LIVE.owner || (houses[0] && houses[0].owner) || '').toUpperCase();
+  const now = Date.now(), agents = [], prs = [], chat = [];
+  let newest = 0;
+  for (const d of houses) {
+    const o = String(d.owner || '?').toUpperCase(), mine = o === owner, offline = now - (d.updatedAt || 0) > 5 * 60000;
+    newest = Math.max(newest, d.updatedAt || 0);
+    for (const a0 of d.agents) {
+      const a = Object.assign({ task: '', lastUser: '', lastAction: '', recent: [], chat: [], edited: [], cwd: '', prs: [] }, a0);
+      a.id = o + ':' + a0.id; a.owner = o; a.mine = mine;
+      if (offline && a.status !== 'dead') { a.status = now - a.lastAt > 60 * 60000 ? 'dead' : 'idle'; a.zone = a.status === 'dead' ? 'graveyard' : 'idle'; a.pace = 0; }
+      agents.push(a);
+      for (const m of a.chat || []) chat.push({ t: m.t, agent: a.id, dir: m.k === 'user' ? 'in' : 'out', text: m.text });
+    }
+    for (const p of d.prs || []) if (!prs.find((x) => x.url === p.url)) prs.push(Object.assign({ agents: [] }, p));
+  }
+  for (const a of agents) if (a.branch && a.status !== 'dead') for (const p of prs) if (p.branch === a.branch) p.agents.push(a.id);
+  chat.sort((x, y) => y.t - x.t);
+  remoteState = { mode: 'live', remote: true, owner, publishedAt: newest, agents, prs: prs.sort((a, b) => b.updatedAt - a.updatedAt), files: [], chat: chat.slice(0, 40),
+    team: { enabled: houses.length > 1, error: null, members: houses.filter((d) => String(d.owner).toUpperCase() !== owner) } };
+  remoteAt = Date.now();
+  return remoteState;
+}
+async function refresh() {
+  if (demo) { apply(demoState()); return; }
+  if (REMOTE) {
+    try { apply(JSON.parse(JSON.stringify(await fetchRemote()))); }
+    catch (e) { demo = true; syncBtns(); const st = demoState(); st._remoteMissing = true; apply(st); }
+    return;
+  }
+  try {
+    const r = await fetch('/api/state', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    apply(await r.json());
+  } catch (e) { demo = true; syncBtns(); const st = demoState(); st._offline = true; apply(st); }
+}
+
+/* ---------- demo world (shown until server.js is running) ---------- */
+let D = null;
+function demoState() {
+  const now = Date.now(), m = 60000;
+  if (!D) {
+    const mk = (id, project, zone, status, task, action, startedMin, lastMin, src = 'claude', branch = '') => ({ id, name: '', project, source: src, cwd: '~/code/' + project, branch, status, zone, task, lastUser: task, lastAction: action, startedAt: now - startedMin * m, lastAt: now - lastMin * m, toolCount: 10 + (hash(id) % 120), pace: status === 'working' ? 1 + (hash(id) % 18) : 0, owner: 'DEMO', mine: true, level: 1, edited: [], recent: [], chat: [], prs: [] });
+    D = { agents: [
+      mk('d1', 'agent-house', 'building', 'working', 'Add a weather overlay to the pixel map', '✎ map.js', 42, 0.1, 'claude', 'feat/weather'),
+      mk('d2', 'thesis-rag', 'fixing', 'working', 'Retriever returns duplicate chunks, fix it', '$ pytest tests/test_retriever.py -q', 25, 0.2, 'codex', 'fix/dedupe-chunks'),
+      mk('d3', 'portfolio', 'reviewing', 'working', 'Review the open PR for the projects page', '$ gh pr diff 14', 12, 0.3, 'claude', 'feat/projects-page'),
+      mk('d4', 'agent-house', 'waiting', 'waiting', 'Should the graveyard keep agents for 48h?', '💬 Done. Want me to also add a filter by project?', 30, 1.5, 'claude'),
+      mk('d5', 'thesis-rag', 'idle', 'idle', 'Summarise the evaluation results', '💬 Here is the summary table.', 120, 22, 'claude'),
+      mk('d6', 'portfolio', 'idle', 'idle', 'Compress hero images', '💬 Saved 3.1 MB.', 90, 35, 'codex'),
+      mk('d7', 'finance-tsa', 'merging', 'working', 'Ship the ARIMA notebook cleanup', '$ gh pr merge 9 --squash', 50, 0.1, 'claude', 'chore/arima-cleanup'),
+      mk('d8', 'agent-house', 'newtask', 'working', 'Write a README for Agent House', '📖 server.js', 1, 0.05, 'codex'),
+      Object.assign(mk('t1', 'shop-app', 'building', 'working', 'Checkout page', '✎ Checkout.tsx', 30, 0.1, 'claude'), { owner: 'DEMO FRIEND', mine: false, pace: 22 }),
+      Object.assign(mk('t2', 'shop-app', 'fixing', 'working', 'Cart total rounding bug', '$ npm test', 14, 0.2, 'codex'), { owner: 'DEMO FRIEND', mine: false, pace: 3 }),
+      Object.assign(mk('t3', 'shop-app', 'waiting', 'waiting', 'Pick a payment provider', '💬 Stripe or Adyen?', 20, 2, 'claude'), { owner: 'DEMO FRIEND', mine: false }),
+    ] };
+    D.agents[0].pace = 16; D.agents[1].pace = 9; D.agents[2].pace = 2; D.agents[6].pace = 12; D.agents[7].pace = 3;
+    const deadNames = ['dog-gamer', 'webapp', 'thesis-rag', 'portfolio', 'finance-tsa', 'agent-house'];
+    for (let i = 0; i < 15; i++) D.agents.push(mk('x' + i, deadNames[i % 6], 'graveyard', 'dead', 'Old task #' + (i + 1), '💬 All done.', 600 + i * 70, 90 + i * 55, i % 3 ? 'claude' : 'codex'));
+    const ADJ = ['Azure', 'Teal', 'Green', 'Plum', 'Ruby', 'Proud', 'Golden', 'Indigo', 'Ivory', 'Cream', 'Red', 'Windy', 'Copper', 'Yellow', 'Crimson', 'Magenta', 'Quiet', 'Scarlet', 'Tan', 'Sandy', 'Cobalt', 'Calm', 'Jade'];
+    const NOUN = ['Compass', 'Knoll', 'Castle', 'Forest', 'Beacon', 'Shore', 'Cave', 'Crane', 'Lantern', 'Basin', 'Elm', 'Cat', 'Bass', 'Hollow', 'Lotus', 'Valley', 'Grove', 'Cedar', 'Falcon', 'Orchid', 'Island', 'Lake', 'Owl'];
+    D.agents.forEach((a, i) => { a.name = ADJ[i % ADJ.length] + NOUN[(i * 7) % NOUN.length]; a.level = Math.max(1, Math.floor(Math.log2(a.toolCount + 1))); a.recent = [{ t: a.lastAt - 4 * m, k: 'user', text: '🗣 ' + a.task }, { t: a.lastAt - 2 * m, k: 'tool', text: '📖 reading project files' }, { t: a.lastAt, k: 'tool', text: a.lastAction }]; });
+    D.agents[0].edited = [{ file: '~/code/agent-house/src/map.js', t: now - 2 * m }, { file: '~/code/agent-house/src/weather.js', t: now - 5 * m }];
+    D.agents[7].edited = [{ file: '~/code/agent-house/src/map.js', t: now - 1 * m }];
+    D.agents[1].edited = [{ file: '~/code/thesis-rag/rag/retriever.py', t: now - 3 * m }];
+    D.prs = [
+      { number: 14, title: 'Projects page with filterable cards', url: 'https://github.com/', draft: false, ci: 'pass', review: 'REVIEW_REQUIRED', conflict: false, branch: 'feat/projects-page', updatedAt: now - 20 * m, repo: 'jiaqi/portfolio', agents: ['d3'] },
+      { number: 31, title: 'Dedupe retrieved chunks before reranking', url: 'https://github.com/', draft: true, ci: 'fail', review: 'REVIEW_REQUIRED', conflict: false, branch: 'fix/dedupe-chunks', updatedAt: now - 8 * m, repo: 'jiaqi/thesis-rag', agents: ['d2'] },
+      { number: 9, title: 'Clean up ARIMA notebook and pin deps', url: 'https://github.com/', draft: false, ci: 'pass', review: 'APPROVED', conflict: false, branch: 'chore/arima-cleanup', updatedAt: now - 3 * m, repo: 'jiaqi/finance-tsa', agents: ['d7'] },
+      { number: 6, title: 'Weather overlay for the map (work in progress)', url: 'https://github.com/', draft: true, ci: 'pending', review: 'REVIEW_REQUIRED', conflict: true, branch: 'feat/weather', updatedAt: now - 1 * m, repo: 'jiaqi/agent-house', agents: ['d1'] },
+      { number: 5, title: 'Pixel font fallback for offline use', url: 'https://github.com/', draft: false, ci: 'pass', review: 'CHANGES_REQUESTED', conflict: false, branch: 'fix/fonts', updatedAt: now - 3 * 60 * m, repo: 'jiaqi/agent-house', agents: [] },
+    ];
+    D.chat = [
+      { t: now - 1.5 * m, agent: 'd4', dir: 'out', text: 'Done. Graveyard now keeps sessions for 48h. Want me to also add a filter by project?' },
+      { t: now - 3 * m, agent: 'd7', dir: 'out', text: 'CI green on #9, approval in. Merging with squash.' },
+      { t: now - 5 * m, agent: 'd2', dir: 'out', text: 'Found it: the overlap window double-counts the last chunk. Writing a regression test first.' },
+      { t: now - 9 * m, agent: 'd2', dir: 'in', text: 'Retriever returns duplicate chunks, fix it' },
+      { t: now - 12 * m, agent: 'd3', dir: 'in', text: 'Review the open PR for the projects page' },
+      { t: now - 22 * m, agent: 'd5', dir: 'out', text: 'Here is the summary table of the evaluation runs, best config is hybrid@k=8.' },
+      { t: now - 40 * m, agent: 'd1', dir: 'in', text: 'Add a weather overlay to the pixel map' },
+    ];
+    demoTimer = setInterval(() => { if (!demo) return; demoTick(); refresh(); }, 6000);
+  }
+  const files = new Map();
+  for (const a of D.agents) if (a.status !== 'dead') for (const e of a.edited) { const f = files.get(e.file) || { file: e.file, agents: [], t: e.t }; f.agents.push(a.id); files.set(e.file, f); }
+  return { mode: 'demo', agents: D.agents.map((a) => ({ ...a })), prs: D.prs, chat: D.chat, files: [...files.values()].sort((a, b) => b.agents.length - a.agents.length) };
+}
+function demoTick() {
+  const now = Date.now(), r = Math.random();
+  const L = D.agents.filter((a) => a.status !== 'dead');
+  const a = L[Math.floor(Math.random() * L.length)];
+  const zones = ['building', 'fixing', 'reviewing', 'merging', 'waiting', 'idle'];
+  const z = zones[Math.floor(Math.random() * zones.length)];
+  a.zone = z; a.status = z === 'waiting' ? 'waiting' : z === 'idle' ? 'idle' : 'working'; a.lastAt = now; a.pace = a.status === 'working' ? Math.floor(Math.random() * 24) : 0;
+  const acts = { building: ['✎ components/Map.tsx', '✎ server.js', '$ npm run build'], fixing: ['$ pytest -x', '✎ retriever.py', '🔎 TypeError'], reviewing: ['$ gh pr view 14', '$ git diff main'], merging: ['$ git push origin HEAD', '$ gh pr merge --squash'], waiting: ['💬 Ready for your call on this'], idle: ['💬 Done.'] };
+  a.lastAction = acts[z][Math.floor(Math.random() * acts[z].length)];
+  a.recent.push({ t: now, k: 'tool', text: a.lastAction }); a.recent = a.recent.slice(-12);
+  D.chat.unshift({ t: now, agent: a.id, dir: 'out', text: a.lastAction.replace(/^\S+\s/, '') }); D.chat = D.chat.slice(0, 40);
+  if (r < 0.12) { // someone finishes, someone new arrives
+    a.status = 'dead'; a.zone = 'graveyard';
+    const id = 'n' + now; const names = ['SilverMountain', 'TopazSparrow', 'VioletPeak', 'RusticPike', 'SunnyCompass', 'LilacLake', 'HazyHare'];
+    D.agents.push({ ...a, id, name: names[Math.floor(Math.random() * names.length)], status: 'working', zone: 'newtask', task: 'A fresh task', lastUser: 'A fresh task', lastAction: '📖 reading the repo', startedAt: now, lastAt: now, recent: [], edited: [], toolCount: 1, level: 1 });
+  }
+}
+
+/* ---------- go ---------- */
+buildBackground(); syncBtns(); refresh(); setInterval(() => { if (!demo) refresh(); }, REMOTE ? 15000 : 4000);
+requestAnimationFrame(frame);
+window.select = select;
+</script>
+</body>
+</html>

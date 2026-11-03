@@ -1,0 +1,4 @@
+config.json
+visitors/
+node_modules/
+.DS_Store

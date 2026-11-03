@@ -1,0 +1,15 @@
+{
+  "owner": "JIAQI",
+  "port": 4321,
+  "repos": [],
+  "team": {
+    "gistId": "",
+    "friends": [],
+    "shareTasks": false,
+    "syncSeconds": 30
+  },
+  "live": {
+    "enabled": false,
+    "pageUrl": "https://trista1208.github.io/agent_amusement_park/"
+  }
+}
