@@ -58,6 +58,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #toast{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:30;pointer-events:none}
 #toast div{font-family:var(--pix);font-size:11px;background:var(--gold);color:#1a1530;border:3px solid #000;padding:8px 12px;box-shadow:4px 4px 0 #0008;animation:pop .25s}
 @keyframes pop{from{transform:translateY(10px);opacity:0}}
+#banner{pointer-events:auto}
 #banner.demo{font-size:13px;border-width:3px;background:#ff9a3d;color:#2a1030;padding:10px 14px;left:50%;transform:translateX(-50%);bottom:auto;top:3%}
 #banner.demo code{color:#2a1030}
 #banner{position:absolute;bottom:2%;left:1%;font-family:var(--pix);font-size:9px;background:#2e1236e6;border:2px solid var(--orange);color:var(--orange);padding:6px 9px;display:none;z-index:10}
@@ -138,7 +139,7 @@ button{font:inherit;color:inherit;cursor:pointer}
       <div class="btns">
         <button id="bSound" title="Beep when an agent is waiting for you">🔈</button>
         <button id="bNotify" title="Desktop notification when an agent is waiting for you">🔕</button>
-        <button id="bDemo" title="Toggle demo data">🎲</button>
+        <button id="bDemo" title="Show made-up demo agents (click again for your real ones)">🎲 demo</button>
         <a id="livelink" target="_blank" style="display:none;border:2px solid var(--line);padding:4px 8px;font-size:18px">📡 live page</a>
         <span class="hint">click an agent · 1-9 select</span>
       </div>
@@ -677,11 +678,14 @@ function apply(data) {
   if (selected) renderCard();
   const bn = $('banner');
   bn.classList.toggle('demo', S.mode === 'demo');
-  if (S.remote && Date.now() - (S.publishedAt || 0) > 5 * 60000) { bn.style.display = 'block'; bn.innerHTML = `📡 ${esc(S.owner)}'s park is offline · last update ${S.publishedAt ? ago(S.publishedAt) : 'never'}`; }
+  const realBtn = '<button onclick="demo=false;anim.clear();S._seen=false;syncBtns();refresh()" style="margin-left:10px;font-family:var(--pix);font-size:11px;background:#2a1030;color:#fff;border:2px solid #000;padding:6px 10px">show my real agents</button>';
+  if (S._remoteMissing) { bn.style.display = 'block'; bn.innerHTML = `📡 No live snapshot yet · ${esc(S.owner || 'JIAQI')}'s Mac hasn't published anything`; }
+  else if (S._offline) { bn.style.display = 'block'; bn.innerHTML = location.protocol === 'file:' ? 'This file was opened directly · start the park with <code>node server.js</code> (or double-click start.command) to see your agents' : 'Can\'t reach the park server on your Mac · start it with <code>node server.js</code>, then reload'; }
+  else if (S.remote && Date.now() - (S.publishedAt || 0) > 5 * 60000) { bn.style.display = 'block'; bn.innerHTML = `📡 ${esc(S.owner)}'s park is offline · last update ${S.publishedAt ? ago(S.publishedAt) : 'never'}`; }
   else if (S.remote && !live().length) { bn.style.display = 'block'; bn.innerHTML = `📡 live from ${esc(S.owner)}'s Mac · no agents running right now`; }
   else if (S.remote) bn.style.display = 'none';
   else if (S.mode === 'demo' && S._remoteMissing) { bn.style.display = 'block'; bn.innerHTML = 'DEMO DATA · the live snapshot could not be loaded'; }
-  else if (S.mode === 'demo') { bn.style.display = 'block'; bn.innerHTML = location.protocol === 'file:' || S._offline ? '🎲 DEMO — these agents are made up. Your park server is not running: start it with <code>node server.js</code>, then reload.' : '🎲 DEMO — these agents are made up · press 🎲 again for your real agents'; }
+  else if (S.mode === 'demo') { bn.style.display = 'block'; bn.innerHTML = '🎲 DEMO — these agents are made up' + realBtn; }
   else if (S.agents.length === 0) { bn.style.display = 'block'; bn.innerHTML = 'No agent sessions in the last 48 h · start a Codex or Claude Code task and it will walk in'; }
   else if (!live().length) { const d = dead(); bn.style.display = 'block'; bn.innerHTML = `No agents running right now · ${d.length} finished in the 👻 haunted house (last one ${ago(d[0].lastAt)}) · start a Codex task and it will ride the 🎢`; }
   else bn.style.display = 'none';
@@ -734,14 +738,14 @@ async function refresh() {
   if (demo) { apply(demoState()); return; }
   if (REMOTE) {
     try { apply(JSON.parse(JSON.stringify(await fetchRemote()))); }
-    catch (e) { demo = true; syncBtns(); const st = demoState(); st._remoteMissing = true; apply(st); }
+    catch (e) { apply({ mode: 'live', remote: true, _remoteMissing: true, agents: [], prs: [], files: [], chat: [], owner: (LIVE && LIVE.owner) || 'JIAQI' }); }
     return;
   }
   try {
     const r = await fetch('/api/state', { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     apply(await r.json());
-  } catch (e) { demo = true; syncBtns(); const st = demoState(); st._offline = true; apply(st); }
+  } catch (e) { apply({ mode: 'live', _offline: true, agents: [], prs: [], files: [], chat: [] }); }
 }
 
 /* ---------- demo world (shown until server.js is running) ---------- */
