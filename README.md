@@ -27,6 +27,10 @@ Hover or click a rider and the coaster slows almost to a stop so you can read it
 
 ## Run it
 
+**Always on (recommended):** double-click `install-autostart.command` once. The park then runs in the background, starts by itself every time you log in, restarts if it stops, and keeps the live page updated. Open it any time at http://localhost:4321. Undo with `uninstall-autostart.command`.
+
+**By hand:**
+
 **Easiest:** double-click `start.command` in this folder. (The first time, macOS may ask: right-click → Open → Open.)
 
 Or in Terminal (needs Node.js 18+, no `npm install`):
