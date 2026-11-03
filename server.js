@@ -107,7 +107,7 @@ async function readLines(file, size) {
 
 function safe(line) { if (!line || line[0] !== '{') return null; try { return JSON.parse(line); } catch { return null; } }
 // Codex prepends "# Files mentioned by the user" blocks; keep only the actual request
-const cleanAsk = (s) => { s = String(s || ''); const m = /##\s*My request for Codex:?\s*([\s\S]*)$/i.exec(s); if (m) return m[1]; if (/^#\s*(Files|Context)/i.test(s)) { const parts = s.split(/\n#{1,3}\s/); return parts[parts.length - 1]; } return s; };
+const cleanAsk = (s) => { s = String(s || '').replace(/<relay\b[^>]*>/g, '').replace(/<\/relay>/g, '').trim(); const m = /##\s*My request for Codex:?\s*([\s\S]*)$/i.exec(s); if (m) return m[1]; if (/^#\s*(Files|Context)/i.test(s)) { const parts = s.split(/\n#{1,3}\s/); return parts[parts.length - 1]; } return s; };
 const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const NOISE = /^(<command-|<local-command|<system-reminder|Caveat:|<environment_context|<user_instructions|# AGENTS\.md|<user_action|\[Request interrupted)/;
 
@@ -126,9 +126,9 @@ function parseClaude(lines, fallbackId) {
     const t = Date.parse(o.timestamp) || 0;
     const c = o.message && o.message.content;
     if (o.type === 'user') {
-      if (typeof c === 'string') { if (!NOISE.test(c.trim())) ev.push({ t, k: 'user', text: c }); }
+      if (typeof c === 'string') { if (!NOISE.test(c.trim())) ev.push({ t, k: 'user', text: cleanAsk(c) }); }
       else if (Array.isArray(c)) for (const it of c) {
-        if (it.type === 'text' && it.text && !NOISE.test(it.text.trim())) ev.push({ t, k: 'user', text: it.text });
+        if (it.type === 'text' && it.text && !NOISE.test(it.text.trim())) ev.push({ t, k: 'user', text: cleanAsk(it.text) });
         else if (it.type === 'tool_result') ev.push({ t, k: 'result', err: !!it.is_error });
       }
     } else if (o.type === 'assistant' && Array.isArray(c)) {
